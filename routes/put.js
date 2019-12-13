@@ -6,8 +6,7 @@ const multer = require("multer");
 var AWS = require("aws-sdk");
 require("dotenv/config");
 
-const dbfile_path =
-  "E:\\React\\umpire_schedule\\cricExtra\\db_code\\sqlite3_db\\cricextra_db";
+const dbfile_path = process.env.DBFILE_PATH;
 const sqliteInstance = new sqlcode(dbfile_path);
 
 const successMsg = "Database operation successful";

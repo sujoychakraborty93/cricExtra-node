@@ -2,8 +2,7 @@ const express = require("express");
 const router = express.Router();
 const sqlcode = require("../DAO/sqlcode_page");
 
-let dbfile_path =
-  "E:\\React\\umpire_schedule\\cricExtra\\db_code\\sqlite3_db\\cricextra_db";
+const dbfile_path = process.env.DBFILE_PATH;
 let sqliteInstance = new sqlcode(dbfile_path);
 
 // async function addNewMatchDetails(res, postData) {

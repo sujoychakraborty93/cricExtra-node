@@ -2,11 +2,12 @@ const express = require("express");
 const router = express.Router();
 const sqlcode = require("../DAO/sqlcode_page");
 const jwt = require("jsonwebtoken");
+var AWS = require("aws-sdk");
 require("dotenv/config");
 
 // let dbfile_path =
 // "E:\\React\\umpire_schedule\\cricExtra\\db_code\\sqlite3_db\\cricextra_db";
-let dbfile_path = process.env.DBFILE_PATH;
+const dbfile_path = process.env.DBFILE_PATH;
 let sqliteInstance = new sqlcode(dbfile_path);
 
 async function getHomePageData(res, uid) {
@@ -411,15 +412,61 @@ router.get("/get/image", async (req, res) => {
   }
 });
 // get aws s3 image link from database
+// router.get("/get/images3", async (req, res) => {
+//   if (Object.keys(req.query).length !== 0) {
+//     let result = await sqliteInstance.getImageUsingQueryS3(req.query);
+//     res.setHeader("count", result.length);
+//     res.send(result);
+//   } else {
+//     let result = await sqliteInstance.getImageListS3();
+//     res.setHeader("count", result.length);
+//     res.send(result);
+//   }
+// });
 router.get("/get/images3", async (req, res) => {
+  const s3 = new AWS.S3({
+    accessKeyId: process.env.AWS_ACCESS_KEY,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    region: process.env.AWS_REGION
+  });
   if (Object.keys(req.query).length !== 0) {
-    let result = await sqliteInstance.getImageUsingQueryS3(req.query);
-    res.setHeader("count", result.length);
-    res.send(result);
+    const result = await sqliteInstance.getImageUsingQueryS3(req.query);
+    console.log("result");
+    console.log(result);
+    if (result.length > 0) {
+      const params = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        // we have result[0].image_data = https://cricextra.s3.amazonaws.com/images/61-1575354187200.jpg
+        // but we need images/61-1575354187200.jpg. So split the data
+        Key: result[0].image_data.split(process.env.AWS_IMAGES_BASE_URL)[1],
+        Expires: parseInt(process.env.AWS_URL_EXPIRY)
+      };
+      const preSignedUrl = s3.getSignedUrl("getObject", params);
+      console.log("preSignedUrl");
+      console.log(preSignedUrl);
+      res.setHeader("count", result.length);
+      result[0].image_data = preSignedUrl;
+      res.send(result);
+    } else {
+      res.send(result);
+    }
   } else {
     let result = await sqliteInstance.getImageListS3();
+    let params = {};
+    let preSignedUrlArr = [];
+    params.Bucket = process.env.AWS_BUCKET_NAME;
+    params.Expires = parseInt(process.env.AWS_URL_EXPIRY);
+    result.map(item => {
+      params.Key = item.image_data.split(process.env.AWS_IMAGES_BASE_URL)[1];
+      var preSignedUrl = s3.getSignedUrl("getObject", params);
+      item.image_data = preSignedUrl;
+      preSignedUrlArr.push(item);
+    });
+
+    console.log("preSignedUrlArr");
+    console.log(preSignedUrlArr);
     res.setHeader("count", result.length);
-    res.send(result);
+    res.send(preSignedUrlArr);
   }
 });
 
